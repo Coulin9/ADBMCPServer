@@ -1,0 +1,669 @@
+name: test-knowledge-driven-spec
+version: 4
+description: >
+  Test-driven spec workflow with optional design research phase.
+  Full flow: proposal → design-research-plan → design-research-report → specs → design → test-verification → tasks.
+  Skippable flow (without design research): proposal → specs → design → test-verification → tasks.
+  The design-research phase is skippable - after proposal, the user is asked whether to skip it.
+  test-verification defines verification paths, tasks reference them for execution.
+artifacts:
+  - id: proposal
+    generates: proposal.md
+    description: Initial proposal document outlining the change
+    template: proposal.md
+    instruction: >
+      Create the proposal document that establishes WHY this change is needed.
+
+
+      Sections:
+
+      - **Why**: 1-2 sentences on the problem or opportunity. What problem does
+      this solve? Why now?
+
+      - **What Changes**: Bullet list of changes. Be specific about new
+      capabilities, modifications, or removals. Mark breaking changes with
+      **BREAKING**.
+
+      - **Capabilities**: Identify which specs will be created or modified:
+        - **New Capabilities**: List capabilities being introduced. Each becomes a new `specs/<name>/spec.md`. Use kebab-case names (e.g., `user-auth`, `data-export`).
+        - **Modified Capabilities**: List existing capabilities whose REQUIREMENTS are changing. Only include if spec-level behavior changes (not just implementation details). Each needs a delta spec file. Check `openspec/specs/` for existing spec names. Leave empty if no requirement changes.
+      - **Impact**: Affected code, APIs, dependencies, or systems.
+
+
+      IMPORTANT: The Capabilities section is critical. It creates the contract
+      between
+
+      proposal and specs phases. Research existing specs before filling this in.
+
+      Each capability listed here will need a corresponding spec file.
+
+
+      Keep it concise (1-2 pages). Focus on the "why" not the "how" -
+
+      implementation details belong in design.md.
+
+
+      This is the foundation - specs, design, and tasks all build on this.
+    requires: []
+  - id: design-research-plan
+    generates: design-research-plan.md
+    description: >
+      Design research plan - identifies investigation scope, affected modules, and
+      data sources to query before design. Skippable phase (user is asked after proposal).
+    template: design-research-plan.md
+    skippable: true
+    instruction: >
+      **MANDATORY — Ask the user whether to execute or skip Design Research.**
+
+      Before doing anything else, you MUST use the **AskUserQuestion tool** to ask.
+      This step is UNCONDITIONAL — no circumstance permits skipping the tool call:
+
+      - Do NOT auto-decide based on the change's complexity or scope
+      - Do NOT infer the answer from prior exploration, conversation context,
+        or any previously gathered information
+      - Do NOT skip because an explore phase has already been completed
+      - Do NOT read a cached decision from proposal.md or any other file
+      - You MUST invoke the AskUserQuestion tool **every single time**, no exceptions
+
+      Question to ask via the tool:
+
+      > "当前需求是否需要进行 Design Research 阶段？
+      > Design Research 会调查相关模块的现有资料（知识库、RAG、飞书文档、本地代码），
+      > 帮助做出更有依据的设计决策。
+      > 对于简单变更可以跳过，对于涉及多模块或不熟悉领域的变更建议执行。"
+
+      Options: "执行 Design Research (Recommended)" / "跳过 Design Research"
+
+      **If user chooses "跳过 Design Research"**: Write ONLY the following content to
+      design-research-plan.md and stop immediately (do NOT execute the steps below):
+
+      ```
+      ## Design Research Decision
+
+      **Status**: SKIPPED
+
+      Design Research 阶段已由用户选择跳过。
+      ```
+
+      **If user chooses "执行 Design Research"**: Proceed with the full plan below.
+
+      ---
+
+      Create a design research plan that identifies WHAT needs to be investigated before design.
+
+      This phase does NOT read or analyze materials directly. It produces a plan that
+      lists the modules in scope, the data sources to consult, and the specific items
+      to retrieve from each source.
+
+
+      **Steps:**
+
+      1. **Determine module scope**: Based on the proposal, identify which modules/components
+         of the system are affected by or relevant to this change.
+
+      2. **Query data sources** (4 sources, query in order; if a source is unavailable,
+         ask the user before skipping):
+
+         **Source 1 - Project Knowledge Base (`knowledge/` folder)**:
+         - First read `knowledge/AGENTS.md` (if it exists) to understand the knowledge base structure
+         - Based on the module scope, plan which knowledge base documents to consult
+         - List specific file paths or topics to look up
+
+         **Source 2 - Remote RAG Server**:
+         - Identify queries to send to the RAG service for relevant architectural docs,
+           design patterns, or historical decisions
+         - List specific search queries or document IDs to retrieve
+
+         **Source 3 - Feishu Docs (via MCP)**:
+         - You MUST use Feishu MCP tools (search-doc, list-docs, etc.) to **actually
+           search and locate** relevant documents during this planning phase
+         - The plan MUST list concrete, valid document links (Feishu URLs) — not
+           keywords, topic descriptions, or speculative document titles
+         - Do NOT write entries like "搜索关键词: XXX" or "可能相关的文档: XXX"
+         - Every Feishu entry in the plan MUST be a real document that you have
+           confirmed exists via a Feishu MCP tool call, in the format:
+           `[文档标题](feishu-url)` — rationale for including this document
+         - If Feishu MCP tools are unavailable, follow the unavailable-data-source
+           procedure (ask the user via AskUserQuestion tool before skipping)
+
+         **Source 4 - Local Code Facts**:
+         - Identify code files, modules, interfaces, and patterns to examine
+         - List specific file paths, class names, function signatures, or grep patterns
+         - Focus on: existing implementations to reuse, interfaces to conform to,
+           patterns to follow, dependencies to be aware of
+
+      3. **For each unavailable data source**: Before skipping, MUST use the
+         **AskUserQuestion tool** to ask the user (do NOT skip without a real tool call):
+
+         > "数据源 '[Source Name]' 当前不可用（[原因]）。是否跳过该数据源？"
+
+         Options: "跳过该数据源" / "提供替代方案"
+
+
+      **Output format**: The plan document should clearly list:
+      - Module scope (which parts of the system are involved)
+      - For each data source: specific items to retrieve with rationale
+      - Any data sources that were skipped and why
+
+
+      **CRITICAL: This phase requires user confirmation before proceeding.**
+      After completing the plan, you MUST use the **AskUserQuestion tool** to ask
+      the user for confirmation (do NOT proceed without a real tool call):
+
+      > "Design Research Plan 已完成，请确认以下内容：
+      > 1. 模块范围是否正确？是否有遗漏或多余的模块？
+      > 2. 计划查询的资料是否完整？
+      > 3. 是否有需要额外补充的资料来源或具体文档？"
+
+      Options: "确认，继续执行" / "需要调整"
+
+      If user chooses "需要调整", ask for specifics via AskUserQuestion tool,
+      update the plan accordingly, then re-confirm.
+      Only proceed to design-research-report after user explicitly confirms.
+    requires:
+      - proposal
+  - id: design-research-report
+    generates: design-research-report.md
+    description: >
+      Design research report - reads and analyzes materials identified in the research plan,
+      extracts key facts, risks, and constraints relevant to design. Skippable phase.
+    template: design-research-report.md
+    skippable: true
+    instruction: >
+      **SKIP CHECK — Read design-research-plan.md first.**
+
+      If design-research-plan.md contains `**Status**: SKIPPED`, the design research
+      phase was skipped by the user. Write ONLY the following content to
+      design-research-report.md and stop immediately:
+
+      ```
+      ## Design Research Decision
+
+      **Status**: SKIPPED
+
+      Design Research 阶段已由用户选择跳过。
+      ```
+
+      ---
+
+      Create a design research report by reading and analyzing the materials identified
+      in the design-research-plan.
+
+
+      **This phase does the actual reading and analysis.** Go through each data source
+      and item listed in design-research-plan.md and extract relevant information.
+
+
+      **Steps:**
+
+      1. **Read design-research-plan.md** to get the list of materials to investigate.
+
+      2. **For each planned item, actually read/query the source:**
+         - Knowledge base files: Read the actual file content
+         - RAG server: Execute queries and capture results
+         - Feishu docs: Use Feishu MCP tools to fetch and read document content
+         - Local code: Read source files, trace interfaces, examine implementations
+
+      3. **Extract and organize findings into two categories:**
+
+         **Category 1: 与需求有关的关键事实 (Key Facts Related to the Requirement)**
+         - 实践规范 (Established practices/conventions in the codebase)
+         - 可复用模块 (Reusable modules, utilities, patterns)
+         - 系统/模块当前状态 (Current state of affected systems/modules)
+         - 相关的技术决策历史 (Historical technical decisions that affect this change)
+         - 接口契约与数据模型 (Interface contracts and data models to conform to)
+
+         **Category 2: 需要关注的风险点与约束 (Risks and Constraints to Watch)**
+         - 对其他不相关模块的影响 (Impact on unrelated modules)
+         - 对广告收入或业务指标的影响 (Impact on ad revenue or business metrics)
+         - 特殊 UI 模式适配需求 (Special UI mode adaptation, e.g., dark mode, minimal mode)
+         - 性能约束 (Performance constraints)
+         - 兼容性要求 (Compatibility requirements)
+         - 安全性考量 (Security considerations)
+         - 第三方依赖风险 (Third-party dependency risks)
+
+      4. **For items that could not be retrieved** (source unavailable, document not found, etc.):
+         - Document what was attempted and what failed
+         - Note any gaps in the research that may need to be addressed later
+
+
+      **Output**: A structured report with clear sections for key facts and risks/constraints,
+      with specific references to source materials (file paths, document links, code locations).
+
+      Each finding should include:
+      - The fact or risk description
+      - Source reference (where it was found)
+      - Relevance to the current change (why it matters)
+    requires:
+      - design-research-plan
+  - id: specs
+    generates: specs/**/*.md
+    description: Detailed specifications for the change
+    template: spec.md
+    instruction: >
+      Create specification files that define WHAT the system should do.
+
+
+      Create one spec file per capability listed in the proposal's Capabilities
+      section.
+
+      - New capabilities: use the exact kebab-case name from the proposal
+      (specs/<capability>/spec.md).
+
+      - Modified capabilities: use the existing spec folder name from
+      openspec/specs/<capability>/ when creating the delta spec at
+      specs/<capability>/spec.md.
+
+
+      Delta operations (use ## headers):
+
+      - **ADDED Requirements**: New capabilities
+
+      - **MODIFIED Requirements**: Changed behavior - MUST include full updated
+      content
+
+      - **REMOVED Requirements**: Deprecated features - MUST include **Reason**
+      and **Migration**
+
+      - **RENAMED Requirements**: Name changes only - use FROM:/TO: format
+
+
+      Format requirements:
+
+      - Each requirement: `### Requirement: <name>` followed by description
+
+      - Use SHALL/MUST for normative requirements (avoid should/may)
+
+      - Each scenario: `#### Scenario: <name>` with WHEN/THEN format
+
+      - **CRITICAL**: Scenarios MUST use exactly 4 hashtags (`####`). Using 3
+      hashtags or bullets will fail silently.
+
+      - Every requirement MUST have at least one scenario.
+
+
+      MODIFIED requirements workflow:
+
+      1. Locate the existing requirement in openspec/specs/<capability>/spec.md
+
+      2. Copy the ENTIRE requirement block (from `### Requirement:` through all
+      scenarios)
+
+      3. Paste under `## MODIFIED Requirements` and edit to reflect new behavior
+
+      4. Ensure header text matches exactly (whitespace-insensitive)
+
+
+      Common pitfall: Using MODIFIED with partial content loses detail at
+      archive time.
+
+      If adding new concerns without changing existing behavior, use ADDED
+      instead.
+
+
+      Example:
+
+      ```
+
+      ## ADDED Requirements
+
+
+      ### Requirement: User can export data
+
+      The system SHALL allow users to export their data in CSV format.
+
+
+      #### Scenario: Successful export
+
+      - **WHEN** user clicks "Export" button
+
+      - **THEN** system downloads a CSV file with all user data
+
+
+      ## REMOVED Requirements
+
+
+      ### Requirement: Legacy export
+
+      **Reason**: Replaced by new export system
+
+      **Migration**: Use new export endpoint at /api/v2/export
+
+      ```
+
+
+      Specs should be testable - each scenario is a potential test case.
+    requires:
+      - proposal
+  - id: design
+    generates: design.md
+    description: Technical design document with implementation details
+    template: design.md
+    instruction: >
+      Create the design document that explains HOW to implement the change.
+
+
+      **Design Research Integration (MANDATORY when not skipped):**
+
+      Read design-research-report.md first.
+
+      - If the report is a **skip marker** (contains `**Status**: SKIPPED`):
+        Design Research was skipped — ignore it and proceed based on proposal
+        and specs alone.
+
+      - Otherwise (Design Research was executed): You **MUST** incorporate the
+        research findings into your design. Specifically:
+        1. Every key fact from the report MUST be addressed — either adopted in a
+           decision or explicitly noted as considered-but-rejected with rationale.
+        2. Every risk/constraint identified in the report MUST appear in the
+           Risks / Trade-offs section with a corresponding mitigation strategy.
+        3. Reusable modules listed in the report MUST be evaluated — use them
+           where applicable, or explain why an alternative was chosen.
+        4. Reference the report as a source (e.g., "Per design-research-report,
+           ...") so reviewers can trace the reasoning.
+
+        **A design that ignores available research findings is incomplete.**
+
+
+      When to include design.md (create only if any apply):
+
+      - Cross-cutting change (multiple services/modules) or new architectural
+      pattern
+
+      - New external dependency or significant data model changes
+
+      - Security, performance, or migration complexity
+
+      - Ambiguity that benefits from technical decisions before coding
+
+
+      Sections:
+
+      - **Context**: Background, current state, constraints, stakeholders
+
+      - **Goals / Non-Goals**: What this design achieves and explicitly excludes
+
+      - **Decisions**: Key technical choices with rationale (why X over Y?).
+      Include alternatives considered for each decision.
+
+      - **Risks / Trade-offs**: Known limitations, things that could go wrong.
+      Format: [Risk] → Mitigation
+
+      - **Migration Plan**: Steps to deploy, rollback strategy (if applicable)
+
+      - **Open Questions**: Outstanding decisions or unknowns to resolve
+
+
+      Focus on architecture and approach, not line-by-line implementation.
+
+      Reference the proposal for motivation and specs for requirements.
+
+
+      Good design docs explain the "why" behind technical decisions.
+    requires:
+      - proposal
+      - specs
+  - id: test-verification
+    generates: test-verification.md
+    description: Test verification plan with complete verification paths (generated BEFORE tasks, serves as the source of truth for tasks generation)
+    template: test-verification.md
+    instruction: >
+      Create the test verification plan that defines HOW to verify each requirement.
+
+      This document is generated BEFORE tasks and serves as the source of truth
+      for task generation.
+
+
+      **CRITICAL: Each level's Command field MUST contain a complete, executable
+      test verification path.** This is not a placeholder - it must include:
+
+
+      1. **The actual test code or tool invocation** that will be executed
+
+      2. **The verification command** to run the tests
+
+      3. **The expected outcome criteria**
+
+
+      **IMPORTANT: Testing is NOT limited to unit test code. Choose the appropriate
+      verification method based on the actual scenario and test level:**
+
+
+      For each spec requirement, analyze the best verification approach:
+
+
+      - **Code-based testing** (单元测试、集成测试等适合用代码验证的场景):
+        Write actual test code (JUnit, pytest, etc.) and execute via build tools.
+
+      - **Tool-based testing** (工具驱动验证，如 UI 实现验证):
+        Use platform tools to verify. Example for Android UI:
+        1. Build and deploy to adb device: `./gradlew installDebug`
+        2. Navigate to target page via adb: `adb shell am start -n com.example/.MainActivity`
+        3. Trigger business scenario via adb input/UI automation
+        4. Capture verification evidence:
+           - Screenshot: `adb shell screencap -p /sdcard/screen.png && adb pull /sdcard/screen.png`
+           - Layout XML: `adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml`
+        5. Analyze captured evidence to determine pass/fail
+
+      - **E2E verification** (端到端关键用户旅程):
+        1. FIRST: Design critical user journey paths (e.g., "User logs in → browses products → adds to cart → checks out")
+        2. PREFER: Attempt automated execution via available tools (Selenium, Appium, adb commands, API calls)
+        3. IF automation is not feasible: Prompt user with clear manual operation instructions
+           - Provide step-by-step instructions
+           - Specify what to observe and report back
+        4. Agent verifies by: reading logs (`adb logcat`, application logs), observing UI state changes, checking API responses
+        5. Record evidence: screenshots, log excerpts, response payloads
+
+
+      **Verification Method Selection Guide:**
+
+
+      | Test Level | Primary Method | When to Use |
+      |------------|---------------|-------------|
+      | L2 Unit | Test code (JUnit/test framework) | Business logic, data transformation, utility functions |
+      | L3 Integration | Test code + service interaction | API endpoints, database operations, service communication |
+      | L4 Contract | Test code + schema validation | API contracts, data model compliance |
+      | L5 E2E | Tool automation > Manual fallback | User journeys, UI flows, cross-system scenarios |
+
+
+      **Agent Decision Logic:**
+
+      1. Is this a logic/data verification? → Write test code + execute
+      2. Is this a UI/visual verification? → Use platform tools (adb, screenshot, layout dump)
+      3. Is this a user journey? → Design path → Try automation → Fall back to guided manual
+      4. Always capture evidence (screenshots, logs, outputs) for verification records
+
+
+      Example for Android UI verification (L5):
+
+      ```
+
+      1. 设计关键用户旅程: 用户打开应用 → 导航到个人资料页 → 修改用户名 → 保存
+
+      2. 自动化验证路径:
+
+      ```bash
+      # 部署到设备
+      ./gradlew installDebug
+
+      # 启动应用并导航到目标页面
+      adb shell am start -n com.example/.ProfileActivity
+      sleep 2
+
+      # 截图验证初始状态
+      adb shell screencap -p /sdcard/before.png && adb pull /sdcard/before.png
+
+      # 通过 UI 自动化触发修改用户名操作 (或使用 adb input)
+      adb shell input text "NewUserName"
+      adb shell input keyevent 66  # Enter
+      adb shell input tap 540 1200  # 点击保存按钮位置
+
+      # 截图验证结果
+      sleep 1
+      adb shell screencap -p /sdcard/after.png && adb pull /sdcard/after.png
+
+      # 获取布局验证 UI 状态
+      adb shell uiautomator dump /sdcard/ui.xml && adb pull /sdcard/ui.xml
+      ```
+
+      3. 验证标准: 对比 before/after 截图，检查 ui.xml 中用户名文本已更新
+      ```
+
+
+      Example for manual fallback (E2E):
+
+      ```
+
+      关键用户旅程: 用户注册流程
+
+      自动化不可行 (需要邮箱验证、人机验证)，提示用户手动操作:
+
+      【请用户手动执行以下步骤】
+
+      1. 打开应用，点击"注册"按钮
+      2. 填写邮箱: test@example.com
+      3. 填写密码并确认
+      4. 点击"发送验证码"
+      5. 检查邮箱获取验证码并输入
+      6. 点击"完成注册"
+
+      【Agent 验证手段】
+
+      - 监听应用日志: `adb logcat -s RegistrationService:*`
+      - 检查注册成功后的页面跳转
+      - 验证新用户已存在于后端数据库 (通过 API 调用)
+
+      验证标准: 日志无报错，页面跳转到主页，API 返回新用户信息
+      ```
+
+
+      **This document is the foundation for tasks generation.**
+
+      The tasks artifact will reference these verification paths to generate
+      implementation tasks.
+    requires:
+      - specs
+      - design
+  - id: tasks
+    generates: tasks.md
+    description: Implementation checklist that references test-verification paths for execution tasks
+    template: tasks.md
+    instruction: >
+      Create the task list that breaks down the implementation work.
+
+      **CRITICAL: Reference test-verification.md for all test execution tasks.**
+
+
+      The test-verification.md already defines the verification paths, test code,
+      and execution commands. Your job is to:
+
+
+      1. Generate implementation tasks based on specs and design
+
+      2. For each implementation task, reference the corresponding test-verification
+      level to create test execution tasks
+
+      3. Use the exact commands and test code from test-verification.md
+
+
+      **IMPORTANT: Follow the template below exactly.** The apply phase parses
+      checkbox format to track progress. Tasks not using `- [ ]` won't be tracked.
+
+
+      Guidelines:
+
+      - Group related tasks under ## numbered headings
+
+      - Each task MUST be a checkbox: `- [ ] X.Y Task description`
+
+      - Tasks should be small enough to complete in one session
+
+      - Order tasks by dependency (what must be done first?)
+
+      - **For test tasks, reference test-verification.md sections and use the
+      commands defined there** (e.g., "执行 L2 单元测试: ./gradlew test")
+
+
+      Implementation tasks should be interleaved with verification:
+
+      - Implement feature → Execute L2 verification from test-verification.md →
+      Execute L3 verification → ...
+
+
+      **CRITICAL: Without referencing test-verification.md verification paths,
+      the apply phase will refuse to start implementation.**
+    requires:
+      - specs
+      - design
+      - test-verification
+apply:
+  requires:
+    - test-verification
+    - tasks
+  tracks: tasks.md
+  instruction: |
+    BEFORE starting implementation:
+    1. Read test-verification.md to understand the complete verification paths and test commands
+    2. Read tasks.md and verify it references test-verification.md for all test execution tasks
+    3. If test-verification.md is missing or incomplete, REFUSE to implement and ask user to update it
+    4. Read design.md to understand the approved architecture and technical decisions
+
+    DURING implementation:
+    1. Read context files, work through pending tasks
+    2. After implementing each feature, execute the verification commands from test-verification.md
+    3. Record test results in test-verification.md
+    4. If any blocking test level FAILS, PAUSE and fix before continuing
+    5. Feed test failures back as context for next implementation decisions
+
+    **CRITICAL RULES (MUST FOLLOW):**
+
+    **Rule 1: E2E User Journey Confirmation**
+    - For L5 E2E tests, after EACH user journey verification completes, you MUST:
+      1. Present the verification evidence (screenshots, logs, outputs) to the user
+      2. Use the **AskUserQuestion tool** to ask (do NOT just print the question — you MUST invoke the tool):
+         > "用户旅程 '[Journey Name]' 已完成验证。请确认是否符合您的预期？"
+         Options: "符合" / "不符合"
+      3. Wait for the tool response before proceeding to the next journey
+      4. Only mark the journey as PASS when user explicitly confirms "符合"
+      5. If user says "不符合", use the **AskUserQuestion tool** again to ask for specific issues, fix them, then re-verify
+
+    **Rule 2: No Automatic Test Skipping**
+    - Tests MUST NEVER be automatically skipped
+    - If a test needs to be skipped (e.g., environment issue, external dependency unavailable), you MUST:
+      1. PAUSE and explain to the user WHY the test needs to be skipped
+      2. Use the **AskUserQuestion tool** to ask (do NOT just print the question — you MUST invoke the tool):
+         > "测试 '[Test Name]' 需要跳过，原因: [具体原因]。是否允许跳过？"
+         Options: "允许跳过" / "不允许，继续执行"
+      3. Only skip if user explicitly grants permission via the tool response
+      4. Record the skip reason and user approval in test-verification.md
+      5. Track skipped tests for later resolution
+
+    **Rule 3: Architecture Change Detection & Reset**
+    - When fixing test failures, if the fix requires changes to the architecture or technical approach:
+      1. Compare the proposed fix against design.md decisions
+      2. Compare against tasks.md task structure
+      3. If the fix DEVIATES from the approved design/tasks:
+         a. PAUSE implementation immediately
+         b. Inform user: "修复方案偏离了 design.md 中的架构设计: [具体偏离点]"
+         c. Use the **AskUserQuestion tool** to ask (do NOT just print the question — you MUST invoke the tool):
+            > "需要更新 design.md 和 tasks.md 后重新执行，是否继续？"
+            Options: "更新设计并重新执行" / "坚持原设计"
+         d. If user chooses "更新设计并重新执行":
+            - Update design.md with new architectural decisions
+            - Update tasks.md with revised task structure
+            - Reset to Task 1.1 and restart the apply process
+         e. If user chooses "坚持原设计": find an alternative fix that doesn't deviate
+
+    **Global Rule: All user interactions MUST use the AskUserQuestion tool**
+    - Any time you need the user to make a decision, confirm, or provide input,
+      you MUST invoke the **AskUserQuestion tool** to perform the actual ask.
+    - Do NOT simply print a question in your output and assume the user will respond.
+    - Do NOT proceed past a decision point without receiving a tool response from the user.
+
+    COMPLETION criteria:
+    - All implementation tasks marked complete
+    - ALL blocking test levels (L1-L6) show PASS in test-verification.md
+    - All E2E user journeys have explicit user confirmation
+    - No tests were skipped without user approval
+    - All skipped tests are tracked and documented
+    - If tests fail, implementation is NOT complete - fix and re-test

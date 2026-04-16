@@ -2,7 +2,7 @@ class AdbmcpServer < Formula
   desc "MCP server exposing ADB commands as tools for AI agents"
   homepage "https://github.com/Coulin9/ADBMCPServer"
   url "https://github.com/Coulin9/ADBMCPServer/releases/download/v1.0.0/ADBMCPServer-1.0.0-all.jar"
-  sha256 "PLACEHOLDER_SHA256"
+  sha256 "35c1ca947fce760d18d32ad2796fd7ad7dbd0dd40c9710107c8bd1a980d7ad4c"
   license "MIT"
 
   depends_on "openjdk@21"

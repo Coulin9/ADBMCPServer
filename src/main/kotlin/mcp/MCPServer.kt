@@ -92,9 +92,11 @@ object MCPServer {
         )
         val tapTool = Tool(
             name = "adb_tap",
-            description = """需要点击屏幕上的指定坐标 (x, y)时使用该工具。建议先使用 screenshot 或 get_ui_hierarchy 确认坐标。
-✅ 正确: 通过 adb_get_ui_hierarchy 得知"确认"按钮 bounds="[100,500][300,600]"，计算中心点后调用 adb_tap(x=200, y=550)
-❌ 错误: 没有先获取 UI 布局或截图，凭猜测调用 adb_tap(x=500, y=500) → 可能点击到错误的位置，应先用 adb_screenshot 或 adb_get_ui_hierarchy 确认坐标
+            description = """需要点击屏幕上的指定坐标 (x, y)时使用该工具。⚠️ 强制要求：执行前必须先调用 adb_get_ui_hierarchy 获取 UI 布局 XML，从目标元素的 bounds 属性中计算精确中心坐标。只有当 adb_get_ui_hierarchy 不可用（如调用失败或返回空结果）时，才降级使用 adb_screenshot 查看屏幕画面来估算坐标。严禁在未获取任何坐标信息的情况下凭猜测点击。
+✅ 正确: 先调用 adb_get_ui_hierarchy 获取 XML，找到"确认"按钮 bounds="[100,500][300,600]"，计算中心点后调用 adb_tap(x=200, y=550)
+✅ 正确: adb_get_ui_hierarchy 调用失败后，降级调用 adb_screenshot 查看屏幕，根据截图估算目标位置后调用 adb_tap
+❌ 错误: 没有先调用 adb_get_ui_hierarchy，直接使用 adb_screenshot 获取坐标 → 应优先使用 adb_get_ui_hierarchy，截图仅作为降级方案
+❌ 错误: 没有先获取 UI 布局或截图，凭猜测调用 adb_tap(x=500, y=500) → 可能点击到错误的位置
 ❌ 错误: 想向下滚动页面，调用 adb_tap → 点击无法实现滚动，应使用 adb_swipe""",
             inputSchema = ToolSchema(
                 properties = buildJsonObject {
@@ -106,9 +108,11 @@ object MCPServer {
         )
         val swipeTool = Tool(
             name = "adb_swipe",
-            description = """当需要在屏幕上执行滑动操作 (从点1滑动到点2)时使用该工具。用于滚动列表或解锁屏幕。
-✅ 正确: 向下滚动列表查看更多内容 → adb_swipe(startX=540, startY=1800, endX=540, endY=600, durationMs=500)
+            description = """当需要在屏幕上执行滑动操作 (从点1滑动到点2)时使用该工具。用于滚动列表或解锁屏幕。⚠️ 强制要求：执行前必须先调用 adb_get_ui_hierarchy 获取 UI 布局 XML，从目标元素的 bounds 属性中确定精确的起止坐标。只有当 adb_get_ui_hierarchy 不可用（如调用失败或返回空结果）时，才降级使用 adb_screenshot 查看屏幕画面来估算坐标。严禁在未获取任何坐标信息的情况下凭猜测滑动。
+✅ 正确: 先调用 adb_get_ui_hierarchy 获取 XML，确定列表区域的 bounds 后执行 adb_swipe(startX=540, startY=1800, endX=540, endY=600, durationMs=500)
 ✅ 正确: 需要精确滑动（如滑块验证、进度条调节）→ 先调用 adb_get_ui_hierarchy 获取滑块元素的 bounds 属性确定起止坐标，再执行 adb_swipe
+✅ 正确: adb_get_ui_hierarchy 调用失败后，降级调用 adb_screenshot 查看屏幕，根据截图估算滑动区域后执行 adb_swipe
+❌ 错误: 没有先调用 adb_get_ui_hierarchy，直接使用 adb_screenshot 获取坐标 → 应优先使用 adb_get_ui_hierarchy，截图仅作为降级方案
 ❌ 错误: 想点击某个按钮 → adb_swipe(startX=200, startY=550, endX=200, endY=550, durationMs=100)，起点终点相同的滑动不等于点击，应使用 adb_tap
 ❌ 错误: 快速滑动 durationMs=0 → 时间过短可能不被设备识别，建议至少 100ms""",
             inputSchema = ToolSchema(

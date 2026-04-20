@@ -64,25 +64,25 @@
 
 > **验证来源:** `test-verification.md` → L5: E2E Tests
 
-- [ ] 5.1 模拟发版构建：`VERSION=1.0.0 ./gradlew clean shadowJar`，验证产物正确
-- [ ] 5.2 验证 fat JAR 可启动：`timeout 5 java -jar build/libs/ADBMCPServer-1.0.0-all.jar || true`
-- [ ] 5.3 计算并验证 SHA256：`shasum -a 256 build/libs/ADBMCPServer-1.0.0-all.jar`
-- [ ] 5.4 验证 Formula Ruby 语法：`ruby -c Formula/adbmcp-server.rb`
-- [ ] 5.5 **[用户确认]** 展示构建产物和 Formula 内容，确认符合预期
+- [x] 5.1 模拟发版构建：`VERSION=1.0.0 ./gradlew clean shadowJar`，验证产物正确
+- [x] 5.2 验证 fat JAR 可启动：`timeout 5 java -jar build/libs/ADBMCPServer-1.0.0-all.jar || true`
+- [x] 5.3 计算并验证 SHA256：`shasum -a 256 build/libs/ADBMCPServer-1.0.0-all.jar`
+- [x] 5.4 验证 Formula Ruby 语法：`ruby -c Formula/adbmcp-server.rb`
+- [x] 5.5 **[用户确认]** 展示构建产物和 Formula 内容，确认符合预期
 
 ## 6. L6 回归测试 (Gate: MUST PASS)
 
 > **验证来源:** `test-verification.md` → L6: Regression Suite
 
-- [ ] 6.1 执行完整测试套件: `./gradlew clean test`
-- [ ] 6.2 验证 fat JAR 构建成功: `./gradlew shadowJar`
-- [ ] 6.3 验证无现有测试被破坏
+- [x] 6.1 执行完整测试套件: `./gradlew clean test`
+- [x] 6.2 验证 fat JAR 构建成功: `./gradlew shadowJar`
+- [x] 6.3 验证无现有测试被破坏
 
 ## 7. 结果汇总与收尾
 
 > **验证来源:** `test-verification.md` → Failure Analysis & Next Steps
 
-- [ ] 7.1 将所有测试结果记录到 `test-verification.md`
-- [ ] 7.2 对失败项进行分类 (bug / flaky / expected / infra)
-- [ ] 7.3 如有阻塞性失败: 修复并重新运行受影响的测试级别
-- [ ] 7.4 最终验证: 所有 Gate (L1, L2, L5, L6) 显示 PASS
+- [x] 7.1 将所有测试结果记录到 `test-verification.md`
+- [x] 7.2 对失败项进行分类 (bug / flaky / expected / infra)
+- [x] 7.3 如有阻塞性失败: 修复并重新运行受影响的测试级别
+- [x] 7.4 最终验证: 所有 Gate (L1, L2, L5, L6) 显示 PASS
